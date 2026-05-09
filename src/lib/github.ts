@@ -17,7 +17,6 @@ export interface GhRepo {
   full_name: string;
   description: string | null;
   html_url: string;
-  homepage: string | null;
   private: boolean;
   fork: boolean;
   archived: boolean;

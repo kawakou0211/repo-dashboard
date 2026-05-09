@@ -28,7 +28,6 @@ export async function GET() {
         full_name: r.full_name,
         description: r.description,
         html_url: r.html_url,
-        homepage: r.homepage,
         is_private: r.private,
         is_fork: r.fork,
         is_archived: r.archived,

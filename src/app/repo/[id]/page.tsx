@@ -5,7 +5,6 @@ import { ArrowLeft, ExternalLink, Lock } from "lucide-react";
 import StatusBadge from "@/components/StatusBadge";
 import RepoEditor from "@/components/RepoEditor";
 import SummaryRegen from "@/components/SummaryRegen";
-import SitePreview from "@/components/SitePreview";
 import { effectiveStatus } from "@/lib/status";
 import { restartScore } from "@/lib/score";
 import { relativeTime } from "@/lib/relativeTime";
@@ -65,8 +64,6 @@ export default function RepoDetail({ params }: { params: Promise<{ id: string }>
         </div>
         <StatusBadge status={status} />
       </div>
-
-      <SitePreview url={repo.homepage} />
 
       <section className="rounded-lg border border-gray-200 bg-white p-4 mb-4">
         <div className="flex items-center justify-between mb-2">
