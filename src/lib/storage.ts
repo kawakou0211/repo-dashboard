@@ -1,5 +1,5 @@
 "use client";
-import type { AiSummary, Repository, RepoMeta, RepoWithMeta } from "@/types/db";
+import type { AiSummary, Repository, RepoMeta, RepoWithMeta, SummaryContext } from "@/types/db";
 
 const KEY_REPOS = "rd:repos";
 const KEY_META = "rd:meta";
@@ -83,4 +83,19 @@ export function hash(s: string): string {
   let h = 0;
   for (let i = 0; i < s.length; i++) h = ((h << 5) - h + s.charCodeAt(i)) | 0;
   return String(h);
+}
+
+export function summaryContext(repo: Repository): SummaryContext {
+  return {
+    name: repo.name,
+    description: repo.description,
+    primary_language: repo.primary_language,
+    languages: repo.languages,
+    top_entries: repo.top_entries,
+    readme_excerpt: repo.readme_excerpt,
+  };
+}
+
+export function contextHash(ctx: SummaryContext): string {
+  return hash(JSON.stringify(ctx));
 }

@@ -21,6 +21,17 @@ export interface Repository {
   has_readme: boolean;
   has_lockfile: boolean;
   readme_excerpt: string | null;
+  top_entries: string[];
+  languages: Record<string, number> | null;
+}
+
+export interface SummaryContext {
+  name: string;
+  description: string | null;
+  primary_language: string | null;
+  languages: Record<string, number> | null;
+  top_entries: string[];
+  readme_excerpt: string | null;
 }
 
 // Stored in localStorage

@@ -63,18 +63,39 @@ export async function fetchReadmeExcerpt(
   }
 }
 
-export async function detectLockfile(
+export interface RootInspection {
+  hasLockfile: boolean;
+  entries: string[];
+}
+
+export async function inspectRoot(
   token: string,
   owner: string,
   repo: string,
-): Promise<boolean> {
+): Promise<RootInspection> {
   const ok = octokit(token);
   try {
     const res = await ok.repos.getContent({ owner, repo, path: "" });
-    if (!Array.isArray(res.data)) return false;
-    return res.data.some((entry) => entry.type === "file" && LOCKFILES.has(entry.name));
+    if (!Array.isArray(res.data)) return { hasLockfile: false, entries: [] };
+    const entries = res.data.map((e) => (e.type === "dir" ? `${e.name}/` : e.name));
+    const hasLockfile = res.data.some((e) => e.type === "file" && LOCKFILES.has(e.name));
+    return { hasLockfile, entries };
   } catch {
-    return false;
+    return { hasLockfile: false, entries: [] };
+  }
+}
+
+export async function fetchLanguages(
+  token: string,
+  owner: string,
+  repo: string,
+): Promise<Record<string, number> | null> {
+  const ok = octokit(token);
+  try {
+    const res = await ok.repos.listLanguages({ owner, repo });
+    return res.data as Record<string, number>;
+  } catch {
+    return null;
   }
 }
 

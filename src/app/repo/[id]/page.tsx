@@ -68,7 +68,7 @@ export default function RepoDetail({ params }: { params: Promise<{ id: string }>
       <section className="rounded-lg border border-gray-200 bg-white p-4 mb-4">
         <div className="flex items-center justify-between mb-2">
           <h2 className="text-sm font-semibold">AI Summary</h2>
-          <SummaryRegen githubId={githubId} excerpt={repo.readme_excerpt} onUpdate={setAiState} />
+          <SummaryRegen repo={repo} onUpdate={setAiState} />
         </div>
         <p className="text-sm text-gray-800">{ai?.summary ?? "(未生成)"}</p>
         {ai?.generated_at && (

@@ -5,7 +5,7 @@ import FilterBar from "@/components/FilterBar";
 import SyncButton from "@/components/SyncButton";
 import { effectiveStatus } from "@/lib/status";
 import { restartScore } from "@/lib/score";
-import { getSyncedAt, hash, loadAllAi, loadRepos, saveRepos, setAi, withMeta } from "@/lib/storage";
+import { contextHash, getSyncedAt, loadAllAi, loadRepos, saveRepos, setAi, summaryContext, withMeta } from "@/lib/storage";
 import type { Repository } from "@/types/db";
 import { useSearchParams } from "next/navigation";
 import { relativeTime } from "@/lib/relativeTime";
@@ -49,14 +49,14 @@ function Dashboard() {
 
       const existingAi = loadAllAi();
       for (const r of fresh) {
-        if (!r.readme_excerpt) continue;
-        const h = hash(r.readme_excerpt);
+        const ctx = summaryContext(r);
+        const h = contextHash(ctx);
         const existing = existingAi[r.github_id];
         if (existing && existing.readme_hash === h) continue;
         fetch("/api/summarize", {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ excerpt: r.readme_excerpt }),
+          body: JSON.stringify(ctx),
         })
           .then((r2) => r2.json())
           .then((j) => {

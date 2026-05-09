@@ -1,28 +1,24 @@
 "use client";
 import { useState } from "react";
-import { hash, setAi } from "@/lib/storage";
-import type { AiSummary } from "@/types/db";
+import { contextHash, setAi, summaryContext } from "@/lib/storage";
+import type { AiSummary, Repository } from "@/types/db";
 
 interface Props {
-  githubId: number;
-  excerpt: string | null;
+  repo: Repository;
   onUpdate: (a: AiSummary) => void;
 }
 
-export default function SummaryRegen({ githubId, excerpt, onUpdate }: Props) {
+export default function SummaryRegen({ repo, onUpdate }: Props) {
   const [loading, setLoading] = useState(false);
 
   const onClick = async () => {
-    if (!excerpt) {
-      alert("READMEがありません。");
-      return;
-    }
     setLoading(true);
     try {
+      const ctx = summaryContext(repo);
       const res = await fetch("/api/summarize", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ excerpt }),
+        body: JSON.stringify(ctx),
       });
       const j = await res.json();
       if (!res.ok || !j.ok) {
@@ -32,9 +28,9 @@ export default function SummaryRegen({ githubId, excerpt, onUpdate }: Props) {
       const ai: AiSummary = {
         summary: j.summary,
         generated_at: new Date().toISOString(),
-        readme_hash: hash(excerpt),
+        readme_hash: contextHash(ctx),
       };
-      setAi(githubId, ai);
+      setAi(repo.github_id, ai);
       onUpdate(ai);
     } finally {
       setLoading(false);

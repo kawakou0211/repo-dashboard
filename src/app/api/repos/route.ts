@@ -1,4 +1,4 @@
-import { detectLockfile, fetchReadmeExcerpt, getServerToken, listOwnerRepos, mapWithConcurrency } from "@/lib/github";
+import { fetchLanguages, fetchReadmeExcerpt, getServerToken, inspectRoot, listOwnerRepos, mapWithConcurrency } from "@/lib/github";
 import type { Repository } from "@/types/db";
 import { NextResponse } from "next/server";
 
@@ -17,9 +17,10 @@ export async function GET() {
     const ghRepos = await listOwnerRepos(token);
 
     const enriched: Repository[] = await mapWithConcurrency(ghRepos, 5, async (r) => {
-      const [excerpt, hasLock] = await Promise.all([
+      const [excerpt, root, languages] = await Promise.all([
         fetchReadmeExcerpt(token, r.owner.login, r.name).catch(() => null),
-        detectLockfile(token, r.owner.login, r.name).catch(() => false),
+        inspectRoot(token, r.owner.login, r.name).catch(() => ({ hasLockfile: false, entries: [] as string[] })),
+        fetchLanguages(token, r.owner.login, r.name).catch(() => null),
       ]);
       return {
         github_id: r.id,
@@ -35,8 +36,10 @@ export async function GET() {
         created_at_gh: r.created_at,
         updated_at_gh: r.updated_at,
         has_readme: !!excerpt,
-        has_lockfile: hasLock,
+        has_lockfile: root.hasLockfile,
         readme_excerpt: excerpt,
+        top_entries: root.entries,
+        languages,
       };
     });
 
