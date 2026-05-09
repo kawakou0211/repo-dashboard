@@ -35,7 +35,9 @@ export default async function RepoDetail({ params }: { params: Promise<{ id: str
     .from("repo_tags")
     .select("tag:tags(*)")
     .eq("repository_id", id);
-  const tags: Tag[] = ((repoTags ?? []) as { tag: Tag }[]).map((rt) => rt.tag).filter(Boolean);
+  const tags: Tag[] = ((repoTags ?? []) as unknown as { tag: Tag | Tag[] | null }[])
+    .map((rt) => (Array.isArray(rt.tag) ? rt.tag[0] : rt.tag))
+    .filter((t): t is Tag => !!t);
 
   const { data: allTags } = await supabase
     .from("tags")
