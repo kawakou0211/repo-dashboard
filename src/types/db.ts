@@ -11,6 +11,7 @@ export interface Repository {
   full_name: string;
   description: string | null;
   html_url: string;
+  homepage: string | null;
   is_private: boolean;
   is_fork: boolean;
   is_archived: boolean;
