@@ -8,6 +8,8 @@ import { restartScore } from "@/lib/score";
 import { contextHash, getSyncedAt, loadAllAi, loadRepos, saveRepos, setAi, summaryContext, withMeta } from "@/lib/storage";
 import type { Repository } from "@/types/db";
 import { useSearchParams } from "next/navigation";
+import Link from "next/link";
+import { BarChart3 } from "lucide-react";
 import { relativeTime } from "@/lib/relativeTime";
 
 export default function DashboardPage() {
@@ -121,7 +123,16 @@ function Dashboard() {
     <main className="max-w-5xl mx-auto px-4 py-6">
       <header className="flex items-center justify-between mb-4">
         <h1 className="text-2xl font-bold">My Projects</h1>
-        <SyncButton onClick={sync} loading={syncing} />
+        <div className="flex items-center gap-2">
+          <Link
+            href="/report"
+            className="inline-flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium hover:bg-gray-50"
+          >
+            <BarChart3 className="w-3.5 h-3.5" />
+            Report
+          </Link>
+          <SyncButton onClick={sync} loading={syncing} />
+        </div>
       </header>
 
       {error && (

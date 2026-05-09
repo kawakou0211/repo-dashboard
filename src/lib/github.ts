@@ -85,6 +85,31 @@ export async function inspectRoot(
   }
 }
 
+export async function countRecentCommits(
+  token: string,
+  owner: string,
+  repo: string,
+  since: string,
+): Promise<number> {
+  const ok = octokit(token);
+  try {
+    const res = await ok.request("GET /repos/{owner}/{repo}/commits", {
+      owner,
+      repo,
+      since,
+      per_page: 1,
+    });
+    const link = res.headers.link as string | undefined;
+    if (link) {
+      const m = link.match(/[?&]page=(\d+)>;\s*rel="last"/);
+      if (m) return parseInt(m[1], 10);
+    }
+    return Array.isArray(res.data) ? res.data.length : 0;
+  } catch {
+    return 0;
+  }
+}
+
 export async function fetchLanguages(
   token: string,
   owner: string,
