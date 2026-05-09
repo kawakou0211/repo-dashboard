@@ -3,7 +3,6 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import RepoCard from "@/components/RepoCard";
 import FilterBar from "@/components/FilterBar";
 import SyncButton from "@/components/SyncButton";
-import { effectiveStatus } from "@/lib/status";
 import { restartScore } from "@/lib/score";
 import { contextHash, getSyncedAt, loadAllAi, loadRepos, saveRepos, setAi, summaryContext, withMeta } from "@/lib/storage";
 import type { Repository } from "@/types/db";
@@ -11,6 +10,20 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { BarChart3 } from "lucide-react";
 import { relativeTime } from "@/lib/relativeTime";
+import { effectiveStatus, statusColor } from "@/lib/status";
+import type { ActivityResponse } from "@/app/api/activity/route";
+import type { EffectiveStatus } from "@/types/db";
+
+const STATUS_ORDER: EffectiveStatus[] = [
+  "developing",
+  "active",
+  "paused",
+  "dormant",
+  "done",
+  "idea",
+  "stale",
+  "archived",
+];
 
 export default function DashboardPage() {
   return (
@@ -27,11 +40,16 @@ function Dashboard() {
   const [syncedAt, setSyncedAt] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [activity, setActivity] = useState<ActivityResponse | null>(null);
 
   useEffect(() => {
     setRepos(loadRepos());
     setSyncedAt(getSyncedAt());
     setLoaded(true);
+    fetch("/api/activity?days=7")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => j && setActivity(j as ActivityResponse))
+      .catch(() => {});
   }, []);
 
   const sync = async () => {
@@ -119,6 +137,27 @@ function Dashboard() {
   const recentlyActive = enriched.filter((r) => r.pushed_at && new Date(r.pushed_at).getTime() >= thirty).length;
   const recentlyCreated = enriched.filter((r) => r.created_at_gh && new Date(r.created_at_gh).getTime() >= thirty).length;
 
+  const statusCounts = useMemo(() => {
+    const map = new Map<EffectiveStatus, number>();
+    for (const r of enriched) {
+      const s = effectiveStatus(r, r.meta);
+      map.set(s, (map.get(s) ?? 0) + 1);
+    }
+    return STATUS_ORDER.map((s) => ({ status: s, count: map.get(s) ?? 0 })).filter((r) => r.count > 0);
+  }, [enriched]);
+
+  const staleCount = useMemo(() => {
+    return enriched.filter((r) => {
+      if (r.is_archived) return false;
+      const m = r.meta?.manual_status;
+      if (m === "done" || m === "archived" || m === "idea") return false;
+      if (!r.pushed_at) return true;
+      return Date.now() - new Date(r.pushed_at).getTime() > 90 * 86_400_000;
+    }).length;
+  }, [enriched]);
+
+  const maxStatusCount = Math.max(1, ...statusCounts.map((s) => s.count));
+
   return (
     <main className="max-w-5xl mx-auto px-4 py-6">
       <header className="flex items-center justify-between mb-4">
@@ -141,9 +180,35 @@ function Dashboard() {
         </div>
       )}
 
-      <div className="rounded-lg border border-gray-200 bg-white px-4 py-3 mb-4 text-sm text-gray-700">
-        直近30日: <b>{recentlyActive}</b> active · <b>{recentlyCreated}</b> new · {enriched.length} total
-        {syncedAt && <span className="text-muted ml-3">last sync {relativeTime(syncedAt)}</span>}
+      <div className="rounded-lg border border-gray-200 bg-white p-4 mb-4 grid gap-4 sm:grid-cols-2">
+        <div>
+          <div className="text-xs font-semibold text-muted mb-2">Activity</div>
+          <div className="grid grid-cols-4 gap-2 text-sm">
+            <Stat label="commits 7d" value={activity?.total_commits ?? "—"} />
+            <Stat label="active 30d" value={recentlyActive} />
+            <Stat label="new 30d" value={recentlyCreated} />
+            <Stat label="stale" value={staleCount} accent={staleCount > 0 ? "warn" : undefined} />
+          </div>
+          {syncedAt && <div className="text-xs text-muted mt-2">last sync {relativeTime(syncedAt)} · {enriched.length} total repos</div>}
+        </div>
+        <div>
+          <div className="text-xs font-semibold text-muted mb-2">Status mix</div>
+          {statusCounts.length === 0 ? (
+            <p className="text-xs text-muted">—</p>
+          ) : (
+            <ul className="space-y-1 text-xs">
+              {statusCounts.map(({ status, count }) => (
+                <li key={status} className="flex items-center gap-2">
+                  <span className={`inline-block w-16 px-1 py-0.5 rounded text-center border ${statusColor(status)}`}>{status}</span>
+                  <div className="flex-1 h-1.5 bg-gray-100 rounded">
+                    <div className="h-full bg-gray-900 rounded" style={{ width: `${(count / maxStatusCount) * 100}%` }} />
+                  </div>
+                  <span className="w-6 text-right tabular-nums">{count}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </div>
 
       <div className="mb-4">
@@ -164,5 +229,15 @@ function Dashboard() {
         </div>
       )}
     </main>
+  );
+}
+
+function Stat({ label, value, accent }: { label: string; value: number | string; accent?: "warn" }) {
+  const accentCls = accent === "warn" ? "text-amber-700" : "text-gray-900";
+  return (
+    <div className="rounded border border-gray-200 px-2 py-1.5">
+      <div className="text-[11px] text-muted leading-tight">{label}</div>
+      <div className={`text-lg font-semibold tabular-nums leading-tight ${accentCls}`}>{value}</div>
+    </div>
   );
 }
