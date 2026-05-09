@@ -1,12 +1,12 @@
-import { summarizeReadme } from "@/lib/claude";
+import { summarizeReadme } from "@/lib/gemini";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
 export async function POST(req: Request) {
-  if (!process.env.ANTHROPIC_API_KEY) {
-    return NextResponse.json({ ok: false, skipped: true, reason: "ANTHROPIC_API_KEY not set" });
+  if (!process.env.GEMINI_API_KEY) {
+    return NextResponse.json({ ok: false, skipped: true, reason: "GEMINI_API_KEY not set" });
   }
   const body = await req.json().catch(() => ({}));
   const excerpt = (body as { excerpt?: string }).excerpt;

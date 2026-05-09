@@ -5,7 +5,7 @@
 **完全無料・DB不要・認証不要** で動作します。
 - リポジトリ情報は GitHub API から都度取得
 - 手動メタデータ(ステータス/タグ/メモ)はブラウザの localStorage に保存
-- AI要約は任意 (Anthropic API キーがあれば有効)
+- AI要約は任意 (Google Gemini API の無料枠で動作)
 
 ## セットアップ
 
@@ -20,9 +20,9 @@ cp .env.local.example .env.local
 2. Scope: `repo` (private含む) と `read:user` をチェック
 3. 生成されたトークンを `.env.local` の `GITHUB_TOKEN` に貼り付け
 
-### (任意) Anthropic API key
+### (任意) Gemini API key
 
-AI要約を使うなら `ANTHROPIC_API_KEY` を設定。空のままでも他は動きます。
+AI要約を使うなら https://aistudio.google.com/apikey でキーを発行し、`GEMINI_API_KEY` に設定。無料枠 (Gemini 2.5 Flash: 15req/min, 1500req/day) で十分動きます。空のままでも他は動きます。
 
 ## 開発
 
