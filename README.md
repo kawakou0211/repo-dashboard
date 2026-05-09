@@ -1,32 +1,28 @@
 # repo-dashboard
 
-自分が過去に開発した GitHub リポジトリを一覧化し、ステータス・メモ・AI要約とともに管理するダッシュボード。詳細は [SPEC.md](./SPEC.md) を参照。
+自分のGitHubリポジトリを一覧化し、ステータス・タグ・メモ・(任意で)AI要約とともに管理する個人用ダッシュボード。
+
+**完全無料・DB不要・認証不要** で動作します。
+- リポジトリ情報は GitHub API から都度取得
+- 手動メタデータ(ステータス/タグ/メモ)はブラウザの localStorage に保存
+- AI要約は任意 (Anthropic API キーがあれば有効)
 
 ## セットアップ
 
 ```bash
 pnpm install
-cp .env.local.example .env.local   # 各種キーを記入
+cp .env.local.example .env.local
 ```
 
-### Supabase
+### GitHub Personal Access Token を作成
 
-1. Supabase プロジェクト作成
-2. SQL Editor で `supabase/migrations/0001_init.sql` を実行
-3. Authentication → Providers → GitHub を有効化（scope: `repo read:user`）
+1. https://github.com/settings/tokens (classic) → **Generate new token (classic)**
+2. Scope: `repo` (private含む) と `read:user` をチェック
+3. 生成されたトークンを `.env.local` の `GITHUB_TOKEN` に貼り付け
 
-### GitHub OAuth App
+### (任意) Anthropic API key
 
-- Authorization callback URL: `https://<your-supabase>.supabase.co/auth/v1/callback`
-- Client ID / Secret を Supabase Auth Provider に登録
-
-### 環境変数
-
-`.env.local` に記入。`ALLOWED_GITHUB_USER_ID` には自分の GitHub 数値ID を入れる:
-
-```bash
-curl https://api.github.com/users/<your-username> | jq .id
-```
+AI要約を使うなら `ANTHROPIC_API_KEY` を設定。空のままでも他は動きます。
 
 ## 開発
 
@@ -34,6 +30,8 @@ curl https://api.github.com/users/<your-username> | jq .id
 pnpm dev
 ```
 
+http://localhost:3000 → 自動的に `/dashboard` へ。Sync now を押すとGitHubから取得開始。
+
 ## デプロイ
 
-Vercel に接続して環境変数を設定するだけ。
+このアプリはローカル運用前提で、認証ガードがありません。Vercelにデプロイする場合は何らかの保護(Vercel Authentication 等)が必要です。

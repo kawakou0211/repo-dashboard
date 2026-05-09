@@ -1,4 +1,4 @@
-import type { ActivityStatus, EffectiveStatus, ManualStatus, Repository, RepoMeta } from "@/types/db";
+import type { ActivityStatus, EffectiveStatus, ManualStatus, RepoMeta, Repository } from "@/types/db";
 
 export function activityStatus(pushed_at: string | null): ActivityStatus {
   if (!pushed_at) return "stale";

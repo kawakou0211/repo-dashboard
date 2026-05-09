@@ -27,6 +27,12 @@ export interface GhRepo {
   owner: { login: string };
 }
 
+export function getServerToken(): string {
+  const t = process.env.GITHUB_TOKEN;
+  if (!t) throw new Error("GITHUB_TOKEN is not set");
+  return t;
+}
+
 export function octokit(token: string) {
   return new Octokit({ auth: token });
 }

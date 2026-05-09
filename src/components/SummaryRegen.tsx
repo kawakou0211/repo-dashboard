@@ -1,26 +1,41 @@
 "use client";
-import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { hash, setAi } from "@/lib/storage";
+import type { AiSummary } from "@/types/db";
 
-export default function SummaryRegen({ repoId }: { repoId: string }) {
-  const router = useRouter();
+interface Props {
+  githubId: number;
+  excerpt: string | null;
+  onUpdate: (a: AiSummary) => void;
+}
+
+export default function SummaryRegen({ githubId, excerpt, onUpdate }: Props) {
   const [loading, setLoading] = useState(false);
-  const [, startTransition] = useTransition();
 
   const onClick = async () => {
+    if (!excerpt) {
+      alert("READMEがありません。");
+      return;
+    }
     setLoading(true);
     try {
       const res = await fetch("/api/summarize", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ repository_id: repoId }),
+        body: JSON.stringify({ excerpt }),
       });
-      if (!res.ok) {
-        const j = await res.json().catch(() => ({}));
-        alert(`Failed: ${j.error ?? res.statusText}`);
+      const j = await res.json();
+      if (!res.ok || !j.ok) {
+        alert(`Failed: ${j.error ?? j.reason ?? res.statusText}`);
         return;
       }
-      startTransition(() => router.refresh());
+      const ai: AiSummary = {
+        summary: j.summary,
+        generated_at: new Date().toISOString(),
+        readme_hash: hash(excerpt),
+      };
+      setAi(githubId, ai);
+      onUpdate(ai);
     } finally {
       setLoading(false);
     }
