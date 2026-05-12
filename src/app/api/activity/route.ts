@@ -24,11 +24,18 @@ export interface ActivityResponse {
 
 export async function GET(request: NextRequest) {
   const supabase = createRouteHandlerSupabase(request);
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+  }
 
-  const token = session?.provider_token;
+  const { data: tokenRow } = await supabase
+    .from("github_tokens")
+    .select("token")
+    .eq("user_id", user.id)
+    .single();
+
+  const token = tokenRow?.token;
   if (!token) {
     return NextResponse.json({ error: "GitHub token not found. Please sign in again." }, { status: 401 });
   }

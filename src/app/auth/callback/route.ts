@@ -19,17 +19,31 @@ export async function GET(request: NextRequest) {
           },
           setAll(cookiesToSet) {
             cookiesToSet.forEach(({ name, value, options }) => {
-              response.cookies.set(name, value, options);
+              try {
+                response.cookies.set(name, value, options);
+              } catch (e) {
+                console.error("cookie set failed:", name, String(e));
+              }
             });
           },
         },
       },
     );
 
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+    console.log("exchange:", { error: error?.message, hasSession: !!data?.session, providerToken: !!data?.session?.provider_token });
+
     if (!error) {
+      // Store the GitHub token in DB so API routes can use it
+      if (data.session?.provider_token && data.session?.user) {
+        await supabase.from("github_tokens").upsert(
+          { user_id: data.session.user.id, token: data.session.provider_token },
+          { onConflict: "user_id" },
+        ).then(({ error: e }) => { if (e) console.error("token store failed:", e.message); });
+      }
       return response;
     }
+    console.error("exchange error:", error?.message);
   }
 
   return NextResponse.redirect(`${origin}/login?error=auth_error`);
