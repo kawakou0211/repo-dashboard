@@ -30,7 +30,7 @@ export default function SummaryRegen({ repo, onUpdate }: Props) {
         generated_at: new Date().toISOString(),
         readme_hash: contextHash(ctx),
       };
-      setAi(repo.github_id, ai);
+      await setAi(repo.github_id, ai);
       onUpdate(ai);
     } finally {
       setLoading(false);

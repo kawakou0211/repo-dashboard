@@ -1,5 +1,6 @@
-import { countRecentCommits, getServerToken, listOwnerRepos, mapWithConcurrency } from "@/lib/github";
-import { NextResponse } from "next/server";
+import { createRouteHandlerSupabase } from "@/lib/supabase/server";
+import { countRecentCommits, listOwnerRepos, mapWithConcurrency } from "@/lib/github";
+import { type NextRequest, NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -21,15 +22,18 @@ export interface ActivityResponse {
   rows: ActivityRow[];
 }
 
-export async function GET(req: Request) {
-  let token: string;
-  try {
-    token = getServerToken();
-  } catch (e: unknown) {
-    return NextResponse.json({ error: e instanceof Error ? e.message : "no token" }, { status: 500 });
+export async function GET(request: NextRequest) {
+  const supabase = createRouteHandlerSupabase(request);
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  const token = session?.provider_token;
+  if (!token) {
+    return NextResponse.json({ error: "GitHub token not found. Please sign in again." }, { status: 401 });
   }
 
-  const url = new URL(req.url);
+  const url = new URL(request.url);
   const days = Math.min(365, Math.max(1, Number(url.searchParams.get("days") ?? 7)));
   const since = new Date(Date.now() - days * 86_400_000).toISOString();
 

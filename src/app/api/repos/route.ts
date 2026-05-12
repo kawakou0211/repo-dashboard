@@ -1,16 +1,20 @@
-import { fetchLanguages, fetchReadmeExcerpt, getServerToken, inspectRoot, listOwnerRepos, mapWithConcurrency } from "@/lib/github";
+import { createRouteHandlerSupabase } from "@/lib/supabase/server";
+import { fetchLanguages, fetchReadmeExcerpt, inspectRoot, listOwnerRepos, mapWithConcurrency } from "@/lib/github";
 import type { Repository } from "@/types/db";
-import { NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-export async function GET() {
-  let token: string;
-  try {
-    token = getServerToken();
-  } catch (e: unknown) {
-    return NextResponse.json({ error: e instanceof Error ? e.message : "no token" }, { status: 500 });
+export async function GET(request: NextRequest) {
+  const supabase = createRouteHandlerSupabase(request);
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  const token = session?.provider_token;
+  if (!token) {
+    return NextResponse.json({ error: "GitHub token not found. Please sign in again." }, { status: 401 });
   }
 
   try {

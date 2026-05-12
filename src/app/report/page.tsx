@@ -30,7 +30,11 @@ export default function ReportPage() {
   const [aiLoading, setAiLoading] = useState(false);
 
   useEffect(() => {
-    setRepos(withMeta(loadRepos()));
+    async function init() {
+      const r = await loadRepos();
+      setRepos(await withMeta(r));
+    }
+    init();
   }, []);
 
   useEffect(() => {

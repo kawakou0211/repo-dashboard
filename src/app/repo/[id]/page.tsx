@@ -20,11 +20,14 @@ export default function RepoDetail({ params }: { params: Promise<{ id: string }>
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    const r = loadRepos().find((x) => x.github_id === githubId) ?? null;
-    setRepo(r);
-    setMetaState(getMeta(githubId));
-    setAiState(getAi(githubId));
-    setLoaded(true);
+    async function init() {
+      const [repos, m, a] = await Promise.all([loadRepos(), getMeta(githubId), getAi(githubId)]);
+      setRepo(repos.find((x) => x.github_id === githubId) ?? null);
+      setMetaState(m);
+      setAiState(a);
+      setLoaded(true);
+    }
+    init();
   }, [githubId]);
 
   if (!loaded) return null;

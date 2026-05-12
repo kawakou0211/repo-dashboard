@@ -5,14 +5,15 @@ import FilterBar from "@/components/FilterBar";
 import SyncButton from "@/components/SyncButton";
 import { restartScore } from "@/lib/score";
 import { contextHash, getSyncedAt, loadAllAi, loadRepos, saveRepos, setAi, summaryContext, withMeta } from "@/lib/storage";
+import { createClient } from "@/lib/supabase/client";
 import type { Repository } from "@/types/db";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { BarChart3 } from "lucide-react";
+import { BarChart3, LogOut } from "lucide-react";
 import { relativeTime } from "@/lib/relativeTime";
 import { effectiveStatus, statusColor } from "@/lib/status";
 import type { ActivityResponse } from "@/app/api/activity/route";
-import type { EffectiveStatus } from "@/types/db";
+import type { EffectiveStatus, RepoWithMeta } from "@/types/db";
 
 const STATUS_ORDER: EffectiveStatus[] = [
   "developing",
@@ -36,6 +37,7 @@ export default function DashboardPage() {
 function Dashboard() {
   const params = useSearchParams();
   const [repos, setRepos] = useState<Repository[]>([]);
+  const [enriched, setEnriched] = useState<RepoWithMeta[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [syncedAt, setSyncedAt] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
@@ -43,14 +45,22 @@ function Dashboard() {
   const [activity, setActivity] = useState<ActivityResponse | null>(null);
 
   useEffect(() => {
-    setRepos(loadRepos());
-    setSyncedAt(getSyncedAt());
-    setLoaded(true);
+    async function init() {
+      const [r, s] = await Promise.all([loadRepos(), getSyncedAt()]);
+      setRepos(r);
+      setSyncedAt(s);
+      setLoaded(true);
+    }
+    init();
     fetch("/api/activity?days=7")
       .then((r) => (r.ok ? r.json() : null))
       .then((j) => j && setActivity(j as ActivityResponse))
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    withMeta(repos).then(setEnriched);
+  }, [repos]);
 
   const sync = async () => {
     setSyncing(true);
@@ -63,11 +73,11 @@ function Dashboard() {
         return;
       }
       const fresh: Repository[] = json.repos;
-      saveRepos(fresh);
+      await saveRepos(fresh);
       setRepos(fresh);
       setSyncedAt(new Date().toISOString());
 
-      const existingAi = loadAllAi();
+      const existingAi = await loadAllAi();
       for (const r of fresh) {
         const ctx = summaryContext(r);
         const h = contextHash(ctx);
@@ -79,9 +89,9 @@ function Dashboard() {
           body: JSON.stringify(ctx),
         })
           .then((r2) => r2.json())
-          .then((j) => {
+          .then(async (j) => {
             if (j?.ok && j.summary) {
-              setAi(r.github_id, { summary: j.summary, generated_at: new Date().toISOString(), readme_hash: h });
+              await setAi(r.github_id, { summary: j.summary, generated_at: new Date().toISOString(), readme_hash: h });
               setRepos((prev) => [...prev]);
             }
           })
@@ -92,7 +102,11 @@ function Dashboard() {
     }
   };
 
-  const enriched = useMemo(() => withMeta(repos), [repos]);
+  const logout = async () => {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    location.href = "/login";
+  };
 
   const allTags = useMemo(
     () => Array.from(new Set(enriched.flatMap((r) => r.meta?.tags ?? []))).sort(),
@@ -171,6 +185,13 @@ function Dashboard() {
             Report
           </Link>
           <SyncButton onClick={sync} loading={syncing} />
+          <button
+            onClick={logout}
+            className="inline-flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium hover:bg-gray-50"
+            title="Sign out"
+          >
+            <LogOut className="w-3.5 h-3.5" />
+          </button>
         </div>
       </header>
 

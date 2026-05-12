@@ -27,8 +27,8 @@ export default function RepoEditor({ githubId, initialMeta, onChange }: Props) {
       return;
     }
     if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => {
-      const next = setMeta(githubId, {
+    timer.current = setTimeout(async () => {
+      const next = await setMeta(githubId, {
         manual_status: (status || null) as ManualStatus | null,
         category: category || null,
         notes: notes || null,
