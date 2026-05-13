@@ -32,7 +32,9 @@ export async function GET(request: NextRequest) {
 
   if (error) {
     console.error("exchangeCodeForSession error:", error.message);
-    return NextResponse.redirect(new URL("/login?error=auth_error", request.url));
+    return NextResponse.redirect(
+      new URL(`/login?error=${encodeURIComponent(error.message)}`, request.url),
+    );
   }
 
   if (data.session?.provider_token) {
