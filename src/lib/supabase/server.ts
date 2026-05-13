@@ -6,7 +6,7 @@ export async function createServerSupabase() {
   const cookieStore = await cookies();
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!.trim(),
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!.trim(),
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!.replace(/\s/g, ""),
     {
       cookies: {
         getAll() {
@@ -27,7 +27,7 @@ export async function createServerSupabase() {
 export function createRouteHandlerSupabase(request: NextRequest) {
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!.trim(),
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!.trim(),
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!.replace(/\s/g, ""),
     {
       cookies: {
         getAll() {

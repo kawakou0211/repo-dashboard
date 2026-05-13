@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!.trim(),
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!.trim(),
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!.replace(/\s/g, ""),
     {
       cookies: {
         getAll() {
