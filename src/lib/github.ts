@@ -79,6 +79,23 @@ export async function inspectRoot(
   }
 }
 
+export async function fetchCommitDates(
+  token: string,
+  owner: string,
+  repo: string,
+  since: string,
+): Promise<string[]> {
+  const ok = octokit(token);
+  try {
+    const res = await ok.repos.listCommits({ owner, repo, since, per_page: 100 });
+    return res.data
+      .map((c) => c.commit.author?.date ?? c.commit.committer?.date ?? null)
+      .filter((d): d is string => !!d);
+  } catch {
+    return [];
+  }
+}
+
 export async function countRecentCommits(
   token: string,
   owner: string,

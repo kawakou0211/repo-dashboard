@@ -2,12 +2,22 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Sparkles } from "lucide-react";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  CartesianGrid,
+} from "recharts";
 import { effectiveStatus, statusColor } from "@/lib/status";
 import { restartScore } from "@/lib/score";
 import { relativeTime } from "@/lib/relativeTime";
 import { loadRepos, withMeta } from "@/lib/storage";
 import type { EffectiveStatus, RepoWithMeta } from "@/types/db";
 import type { ActivityResponse, ActivityRow } from "@/app/api/activity/route";
+import type { TimelineResponse } from "@/app/api/timeline/route";
 
 const STATUS_ORDER: EffectiveStatus[] = [
   "developing",
@@ -20,12 +30,30 @@ const STATUS_ORDER: EffectiveStatus[] = [
   "archived",
 ];
 
+type Granularity = "day" | "week" | "month";
+
+function formatLabel(label: string, gran: Granularity): string {
+  if (gran === "month") {
+    const [, m] = label.split("-");
+    return `${parseInt(m)}月`;
+  }
+  if (gran === "week") {
+    const [, m, d] = label.split("-");
+    return `${parseInt(m)}/${parseInt(d)}~`;
+  }
+  const [, m, d] = label.split("-");
+  return `${parseInt(m)}/${parseInt(d)}`;
+}
+
 export default function ReportPage() {
-  const [days, setDays] = useState<7 | 30>(7);
+  const [days, setDays] = useState<7 | 30 | 90>(30);
+  const [granularity, setGranularity] = useState<Granularity>("day");
   const [repos, setRepos] = useState<RepoWithMeta[]>([]);
   const [activity, setActivity] = useState<ActivityResponse | null>(null);
   const [actLoading, setActLoading] = useState(false);
   const [actError, setActError] = useState<string | null>(null);
+  const [timeline, setTimeline] = useState<TimelineResponse | null>(null);
+  const [tlLoading, setTlLoading] = useState(false);
   const [aiSummary, setAiSummary] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
 
@@ -57,10 +85,26 @@ export default function ReportPage() {
       }
     };
     run();
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [days]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const run = async () => {
+      setTlLoading(true);
+      setTimeline(null);
+      try {
+        const res = await fetch(`/api/timeline?days=${days}&granularity=${granularity}`);
+        const json = await res.json();
+        if (cancelled) return;
+        if (res.ok) setTimeline(json as TimelineResponse);
+      } finally {
+        if (!cancelled) setTlLoading(false);
+      }
+    };
+    run();
+    return () => { cancelled = true; };
+  }, [days, granularity]);
 
   const generateAi = async () => {
     if (!activity) return;
@@ -108,18 +152,30 @@ export default function ReportPage() {
   const totalRepos = repos.length;
   const maxStatusCount = Math.max(1, ...statusCounts.map((s) => s.count));
 
+  const chartData = useMemo(() => {
+    if (!timeline) return [];
+    return timeline.points.map((p) => ({
+      ...p,
+      displayLabel: formatLabel(p.label, granularity),
+    }));
+  }, [timeline, granularity]);
+
+  const btnBase = "px-3 py-1 rounded-md border text-sm";
+  const btnActive = "bg-gray-900 text-white border-gray-900";
+  const btnInactive = "bg-white border-gray-300 hover:bg-gray-50";
+
   return (
     <main className="max-w-4xl mx-auto px-4 py-6 space-y-6">
       <header className="flex items-center justify-between">
         <Link href="/dashboard" className="inline-flex items-center gap-1 text-sm text-muted hover:text-gray-900">
           <ArrowLeft className="w-4 h-4" /> Dashboard
         </Link>
-        <div className="flex gap-1 text-sm">
-          {[7, 30].map((d) => (
+        <div className="flex gap-1">
+          {([7, 30, 90] as const).map((d) => (
             <button
               key={d}
-              onClick={() => setDays(d as 7 | 30)}
-              className={`px-3 py-1 rounded-md border ${days === d ? "bg-gray-900 text-white border-gray-900" : "bg-white border-gray-300"}`}
+              onClick={() => setDays(d)}
+              className={`${btnBase} ${days === d ? btnActive : btnInactive}`}
             >
               {d}d
             </button>
@@ -129,7 +185,53 @@ export default function ReportPage() {
 
       <h1 className="text-2xl font-bold">Report</h1>
 
-      {/* Section 1: Activity */}
+      {/* Chart */}
+      <section className="rounded-lg border border-gray-200 bg-white p-4">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-sm font-semibold">コミット推移</h2>
+          <div className="flex gap-1">
+            {(["day", "week", "month"] as const).map((g) => (
+              <button
+                key={g}
+                onClick={() => setGranularity(g)}
+                className={`${btnBase} text-xs ${granularity === g ? btnActive : btnInactive}`}
+              >
+                {g === "day" ? "日別" : g === "week" ? "週別" : "月別"}
+              </button>
+            ))}
+          </div>
+        </div>
+        {tlLoading && (
+          <div className="h-48 flex items-center justify-center text-sm text-muted">Loading…</div>
+        )}
+        {!tlLoading && chartData.length > 0 && (
+          <ResponsiveContainer width="100%" height={200}>
+            <BarChart data={chartData} margin={{ top: 4, right: 8, left: -16, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+              <XAxis
+                dataKey="displayLabel"
+                tick={{ fontSize: 11, fill: "#6b7280" }}
+                interval="preserveStartEnd"
+              />
+              <YAxis
+                allowDecimals={false}
+                tick={{ fontSize: 11, fill: "#6b7280" }}
+              />
+              <Tooltip
+                contentStyle={{ fontSize: 12, borderRadius: 6, border: "1px solid #e5e7eb" }}
+                formatter={(v) => [v, "commits"]}
+                labelFormatter={(label) => label}
+              />
+              <Bar dataKey="commits" fill="#1f2937" radius={[3, 3, 0, 0]} maxBarSize={40} />
+            </BarChart>
+          </ResponsiveContainer>
+        )}
+        {!tlLoading && chartData.length === 0 && (
+          <p className="text-sm text-muted text-center py-8">データがありません。</p>
+        )}
+      </section>
+
+      {/* Activity stats */}
       <section className="rounded-lg border border-gray-200 bg-white p-4">
         <h2 className="text-sm font-semibold mb-3">直近{days}日のアクティビティ</h2>
         {actLoading && <p className="text-sm text-muted">Loading…</p>}
@@ -161,7 +263,7 @@ export default function ReportPage() {
         )}
       </section>
 
-      {/* Section 2: AI weekly summary */}
+      {/* AI summary */}
       <section className="rounded-lg border border-gray-200 bg-white p-4">
         <div className="flex items-center justify-between mb-2">
           <h2 className="text-sm font-semibold inline-flex items-center gap-1">
@@ -181,7 +283,7 @@ export default function ReportPage() {
         </p>
       </section>
 
-      {/* Section 3: Status breakdown */}
+      {/* Status breakdown */}
       <section className="rounded-lg border border-gray-200 bg-white p-4">
         <h2 className="text-sm font-semibold mb-3">ステータス内訳 ({totalRepos} repos)</h2>
         {statusCounts.length === 0 ? (
@@ -206,7 +308,7 @@ export default function ReportPage() {
         )}
       </section>
 
-      {/* Section 4: Stale repos */}
+      {/* Stale repos */}
       <section className="rounded-lg border border-gray-200 bg-white p-4">
         <h2 className="text-sm font-semibold mb-3">放置アラート ({stale.length})</h2>
         {stale.length === 0 ? (
