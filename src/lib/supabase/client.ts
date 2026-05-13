@@ -6,7 +6,9 @@ export function createClient() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       auth: {
-        flowType: "implicit",
+        // Prevent auto-detection on page load so the PKCE verifier isn't
+        // consumed before the callback page explicitly calls exchangeCodeForSession.
+        detectSessionInUrl: false,
       },
     },
   );

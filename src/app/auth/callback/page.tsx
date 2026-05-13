@@ -1,30 +1,38 @@
 "use client";
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 export default function AuthCallbackPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   useEffect(() => {
+    const code = searchParams.get("code");
+    if (!code) {
+      router.replace("/login?error=auth_error");
+      return;
+    }
+
     const supabase = createClient();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === "SIGNED_IN" && session) {
-        if (session.provider_token) {
-          await supabase.from("github_tokens").upsert(
-            { user_id: session.user.id, token: session.provider_token },
-            { onConflict: "user_id" },
-          );
-        }
-        router.replace("/dashboard");
-      } else if (event === "INITIAL_SESSION" && !session) {
+    supabase.auth.exchangeCodeForSession(code).then(async ({ data, error }) => {
+      if (error || !data.session) {
         router.replace("/login?error=auth_error");
+        return;
       }
-    });
 
-    return () => subscription.unsubscribe();
-  }, [router]);
+      const session = data.session;
+      if (session.provider_token) {
+        await supabase.from("github_tokens").upsert(
+          { user_id: session.user.id, token: session.provider_token },
+          { onConflict: "user_id" },
+        );
+      }
+
+      router.replace("/dashboard");
+    });
+  }, [router, searchParams]);
 
   return (
     <main className="min-h-screen flex items-center justify-center">
